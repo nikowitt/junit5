@@ -184,7 +184,7 @@ class EnabledIfConditionTests {
 	}
 
 	private ConditionEvaluationResult evaluate(EnabledIf annotation) {
-		return condition.evaluate(annotation, this::mockBinder);
+		return condition.evaluate(annotation, condition::findScriptEngine, this::mockBinder);
 	}
 
 	private void mockBinder(Bindings bindings) {

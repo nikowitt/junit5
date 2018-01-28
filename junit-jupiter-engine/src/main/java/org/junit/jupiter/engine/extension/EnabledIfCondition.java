@@ -12,11 +12,13 @@ package org.junit.jupiter.engine.extension;
 
 import static org.junit.jupiter.api.extension.ConditionEvaluationResult.disabled;
 import static org.junit.jupiter.api.extension.ConditionEvaluationResult.enabled;
+import static org.junit.jupiter.api.extension.ExtensionContext.Namespace.create;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.EnabledIf;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
@@ -50,6 +53,8 @@ class EnabledIfCondition implements ExecutionCondition {
 	 * {@code @EnabledIf} annotation is (meta-)present on the current element.
 	 */
 	private static final ConditionEvaluationResult ENABLED_BY_DEFAULT = enabled("@EnabledIf is not present");
+
+	private static final Namespace NAMESPACE = create(EnabledIfCondition.class, ScriptEngine.class);
 
 	// --- Values used in Bindings ---------------------------------------------
 
@@ -78,17 +83,21 @@ class EnabledIfCondition implements ExecutionCondition {
 			bindings.put(EnabledIf.Bind.JUNIT_CONFIGURATION_PARAMETER, configurationParameterAccessor);
 		};
 
-		return evaluate(optionalAnnotation.get(), contextBinder);
+		Function<String, ScriptEngine> scriptEngineCache = engine -> context.getRoot().getStore(
+			NAMESPACE).getOrComputeIfAbsent(engine, this::findScriptEngine, ScriptEngine.class);
+
+		return evaluate(optionalAnnotation.get(), scriptEngineCache, contextBinder);
 	}
 
-	ConditionEvaluationResult evaluate(EnabledIf annotation, Consumer<Bindings> binder) {
+	ConditionEvaluationResult evaluate(EnabledIf annotation, Function<String, ScriptEngine> scriptEngineFactory,
+			Consumer<Bindings> binder) {
 		Preconditions.notNull(annotation, "annotation must not be null");
 		Preconditions.notNull(binder, "binder must not be null");
 		Preconditions.notEmpty(annotation.value(), "String[] returned by @EnabledIf.value() must not be empty");
 
 		// Find script engine
-		ScriptEngine scriptEngine = findScriptEngine(annotation.engine());
-		logger.debug(() -> "ScriptEngine: " + scriptEngine);
+		ScriptEngine scriptEngine = scriptEngineFactory.apply(annotation.engine());
+		logger.info(() -> "ScriptEngine: " + scriptEngine);
 
 		// Prepare bindings
 		Bindings bindings = scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE);
@@ -145,6 +154,8 @@ class EnabledIfCondition implements ExecutionCondition {
 			scriptEngine = manager.getEngineByMimeType(engine);
 		}
 		Preconditions.notNull(scriptEngine, () -> "Script engine not found: " + engine);
+		String message = String.format("Engine `%s` triggered creation of: %s", engine, scriptEngine);
+		logger.debug(() -> message);
 		return scriptEngine;
 	}
 
