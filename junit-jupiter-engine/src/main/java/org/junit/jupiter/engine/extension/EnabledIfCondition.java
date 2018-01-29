@@ -17,14 +17,15 @@ import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 import javax.script.Bindings;
+import javax.script.Compilable;
+import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 
 import org.junit.jupiter.api.EnabledIf;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
@@ -74,57 +75,83 @@ class EnabledIfCondition implements ExecutionCondition {
 			return ENABLED_BY_DEFAULT;
 		}
 
-		// Bind context-aware names to their current values
-		Accessor configurationParameterAccessor = new ConfigurationParameterAccessor(context);
-		Consumer<Bindings> contextBinder = bindings -> {
-			bindings.put(EnabledIf.Bind.JUNIT_TAGS, context.getTags());
-			bindings.put(EnabledIf.Bind.JUNIT_UNIQUE_ID, context.getUniqueId());
-			bindings.put(EnabledIf.Bind.JUNIT_DISPLAY_NAME, context.getDisplayName());
-			bindings.put(EnabledIf.Bind.JUNIT_CONFIGURATION_PARAMETER, configurationParameterAccessor);
-		};
-
-		Function<String, ScriptEngine> scriptEngineCache = engine -> context.getRoot().getStore(
-			NAMESPACE).getOrComputeIfAbsent(engine, this::findScriptEngine, ScriptEngine.class);
-
-		return evaluate(optionalAnnotation.get(), scriptEngineCache, contextBinder);
-	}
-
-	ConditionEvaluationResult evaluate(EnabledIf annotation, Function<String, ScriptEngine> scriptEngineFactory,
-			Consumer<Bindings> binder) {
-		Preconditions.notNull(annotation, "annotation must not be null");
-		Preconditions.notNull(binder, "binder must not be null");
+		EnabledIf annotation = optionalAnnotation.get();
 		Preconditions.notEmpty(annotation.value(), "String[] returned by @EnabledIf.value() must not be empty");
 
-		// Find script engine
-		ScriptEngine scriptEngine = scriptEngineFactory.apply(annotation.engine());
-		logger.info(() -> "ScriptEngine: " + scriptEngine);
+		// Bind context-aware names to their current values
+		Accessor configurationParameterAccessor = new ConfigurationParameterAccessor(context);
+		Bindings bindings = new SimpleBindings();
+		bindings.put(EnabledIf.Bind.JUNIT_TAGS, context.getTags());
+		bindings.put(EnabledIf.Bind.JUNIT_UNIQUE_ID, context.getUniqueId());
+		bindings.put(EnabledIf.Bind.JUNIT_DISPLAY_NAME, context.getDisplayName());
+		bindings.put(EnabledIf.Bind.JUNIT_CONFIGURATION_PARAMETER, configurationParameterAccessor);
+		logger.debug(() -> "Context bindings: " + bindings);
 
-		// Prepare bindings
-		Bindings bindings = scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE);
-		bindings.put(EnabledIf.Bind.SYSTEM_PROPERTY, systemPropertyAccessor);
-		bindings.put(EnabledIf.Bind.SYSTEM_ENVIRONMENT, environmentVariableAccessor);
-		binder.accept(bindings);
-		logger.debug(() -> "Bindings: " + bindings);
+		// Already cached the compiled script? Use it!
+		Integer annotationHash = Arrays.hashCode(annotation.value()) + annotation.engine().hashCode();
+		Compilation compilation = context.getRoot().getStore(NAMESPACE).get(annotationHash, Compilation.class);
+		if (compilation != null) {
+			System.out.println("Cache hit! " + compilation.script);
+			return evaluate(annotation, compilation.script, compilation.compiledScript, bindings);
+		}
+
+		// Find script engine
+		ScriptEngine scriptEngine = findScriptEngine(annotation.engine());
+		logger.debug(() -> "ScriptEngine: " + scriptEngine);
 
 		// Build actual script text from annotation properties
 		String script = createScript(annotation, scriptEngine.getFactory().getLanguageName());
 		logger.debug(() -> "Script: " + script);
 
-		return evaluate(annotation, scriptEngine, script);
+		if (scriptEngine instanceof Compilable) {
+			Compilable compilable = (Compilable) scriptEngine;
+			CompiledScript compiledScript = compileScript(compilable, script);
+			context.getRoot().getStore(NAMESPACE).put(annotationHash, new Compilation(script, compiledScript));
+			return evaluate(annotation, script, compiledScript, bindings);
+		}
+
+		return evaluate(annotation, scriptEngine, script, bindings);
 	}
 
-	private ConditionEvaluationResult evaluate(EnabledIf annotation, ScriptEngine scriptEngine, String script) {
+	ConditionEvaluationResult evaluate(EnabledIf annotation, ScriptEngine scriptEngine, String script,
+			Bindings bindings) {
 		Object result;
 		try {
-			result = scriptEngine.eval(script);
+			if (scriptEngine instanceof Compilable) {
+				Compilable compilable = (Compilable) scriptEngine;
+				CompiledScript compiledScript = compilable.compile(script);
+				result = compiledScript.eval(bindings);
+			}
+			else {
+				result = scriptEngine.eval(script, bindings);
+			}
 		}
 		catch (ScriptException e) {
 			String caption = "Evaluation of @EnabledIf script failed.";
-			String bindings = scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE).entrySet().toString();
 			String message = String.format("%s script=`%s`, bindings=%s", caption, script, bindings);
 			throw new JUnitException(message, e);
 		}
 
+		return evaluate(annotation, script, result);
+	}
+
+	private ConditionEvaluationResult evaluate(EnabledIf annotation, String script, CompiledScript compiledScript,
+			Bindings bindings) {
+		Object result;
+		try {
+			result = compiledScript.eval(bindings);
+
+		}
+		catch (ScriptException e) {
+			String caption = "Evaluation of compiled @EnabledIf script failed.";
+			String message = String.format("%s script=`%s`, bindings=%s", caption, compiledScript, bindings);
+			throw new JUnitException(message, e);
+		}
+
+		return evaluate(annotation, script, result);
+	}
+
+	private ConditionEvaluationResult evaluate(EnabledIf annotation, String script, Object result) {
 		// Trivial case: script returned a custom ConditionEvaluationResult instance.
 		if (result instanceof ConditionEvaluationResult) {
 			return (ConditionEvaluationResult) result;
@@ -154,6 +181,9 @@ class EnabledIfCondition implements ExecutionCondition {
 			scriptEngine = manager.getEngineByMimeType(engine);
 		}
 		Preconditions.notNull(scriptEngine, () -> "Script engine not found: " + engine);
+		Bindings bindings = scriptEngine.getBindings(ScriptContext.GLOBAL_SCOPE);
+		bindings.put(EnabledIf.Bind.SYSTEM_PROPERTY, systemPropertyAccessor);
+		bindings.put(EnabledIf.Bind.SYSTEM_ENVIRONMENT, environmentVariableAccessor);
 		String message = String.format("Engine `%s` triggered creation of: %s", engine, scriptEngine);
 		logger.debug(() -> message);
 		return scriptEngine;
@@ -170,6 +200,17 @@ class EnabledIfCondition implements ExecutionCondition {
 		return joinLines(System.lineSeparator(), Arrays.asList(lines));
 	}
 
+	private CompiledScript compileScript(Compilable compilable, String script) {
+		try {
+			return compilable.compile(script);
+		}
+		catch (ScriptException e) {
+			String caption = "Compilation of @EnabledIf script failed.";
+			String message = String.format("%s script=`%s`", caption, script);
+			throw new JUnitException(message, e);
+		}
+	}
+
 	String createReason(EnabledIf annotation, String script, String result) {
 		String reason = annotation.reason();
 		reason = reason.replace(REASON_ANNOTATION_PLACEHOLDER, annotation.toString());
@@ -183,6 +224,17 @@ class EnabledIfCondition implements ExecutionCondition {
 			delimiter = System.lineSeparator();
 		}
 		return String.join(delimiter, elements);
+	}
+
+	class Compilation {
+
+		final String script;
+		final CompiledScript compiledScript;
+
+		Compilation(String script, CompiledScript compiledScript) {
+			this.script = script;
+			this.compiledScript = compiledScript;
+		}
 	}
 
 	/**

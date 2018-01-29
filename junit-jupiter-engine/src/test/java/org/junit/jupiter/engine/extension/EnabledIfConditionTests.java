@@ -27,6 +27,7 @@ import java.util.Collections;
 
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
+import javax.script.SimpleBindings;
 
 import org.junit.jupiter.api.EnabledIf;
 import org.junit.jupiter.api.Test;
@@ -184,14 +185,9 @@ class EnabledIfConditionTests {
 	}
 
 	private ConditionEvaluationResult evaluate(EnabledIf annotation) {
-		return condition.evaluate(annotation, condition::findScriptEngine, this::mockBinder);
-	}
-
-	private void mockBinder(Bindings bindings) {
-		bindings.put(EnabledIf.Bind.JUNIT_TAGS, Collections.emptySet());
-		bindings.put(EnabledIf.Bind.JUNIT_UNIQUE_ID, "Mock for UniqueId");
-		bindings.put(EnabledIf.Bind.JUNIT_DISPLAY_NAME, "Mock for DisplayName");
-		bindings.put(EnabledIf.Bind.JUNIT_CONFIGURATION_PARAMETER, Collections.emptyMap());
+		ScriptEngine scriptEngine = condition.findScriptEngine(annotation.engine());
+		String script = condition.createScript(annotation, scriptEngine.getFactory().getLanguageName());
+		return condition.evaluate(annotation, scriptEngine, script, mockContextBindings());
 	}
 
 	private EnabledIf mockEnabledIfAnnotation(String... value) {
@@ -216,6 +212,15 @@ class EnabledIfConditionTests {
 		catch (NoSuchMethodException e) {
 			throw new AssertionError(e);
 		}
+	}
+
+	private Bindings mockContextBindings() {
+		Bindings bindings = new SimpleBindings();
+		bindings.put(EnabledIf.Bind.JUNIT_TAGS, Collections.emptySet());
+		bindings.put(EnabledIf.Bind.JUNIT_UNIQUE_ID, "Mock for UniqueId");
+		bindings.put(EnabledIf.Bind.JUNIT_DISPLAY_NAME, "Mock for DisplayName");
+		bindings.put(EnabledIf.Bind.JUNIT_CONFIGURATION_PARAMETER, Collections.emptyMap());
+		return bindings;
 	}
 
 }
