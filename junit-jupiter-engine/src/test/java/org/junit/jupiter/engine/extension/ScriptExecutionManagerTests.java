@@ -15,12 +15,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Constants.Script.Bind.JUNIT_CONFIGURATION_PARAMETER;
-import static org.junit.jupiter.api.Constants.Script.Bind.JUNIT_DISPLAY_NAME;
-import static org.junit.jupiter.api.Constants.Script.Bind.JUNIT_TAGS;
-import static org.junit.jupiter.api.Constants.Script.Bind.JUNIT_UNIQUE_ID;
-import static org.junit.jupiter.api.Constants.Script.DEFAULT_ENGINE_NAME;
-import static org.junit.jupiter.api.Constants.Script.Reason.DEFAULT_PATTERN;
+import static org.junit.jupiter.engine.Constants.Script.Bind.JUNIT_CONFIGURATION_PARAMETER;
+import static org.junit.jupiter.engine.Constants.Script.Bind.JUNIT_DISPLAY_NAME;
+import static org.junit.jupiter.engine.Constants.Script.Bind.JUNIT_TAGS;
+import static org.junit.jupiter.engine.Constants.Script.Bind.JUNIT_UNIQUE_ID;
+import static org.junit.jupiter.engine.Constants.Script.DEFAULT_ENGINE_NAME;
+import static org.junit.jupiter.engine.Constants.Script.Reason.DEFAULT_PATTERN;
 
 import java.lang.annotation.Annotation;
 import java.util.Collections;

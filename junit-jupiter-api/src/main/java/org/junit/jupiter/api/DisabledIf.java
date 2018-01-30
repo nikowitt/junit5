@@ -28,8 +28,8 @@ public @interface DisabledIf {
 
 	String[] value();
 
-	String reason() default Constants.Script.Reason.DEFAULT_PATTERN;
+	String reason() default "Script `{source}` evaluated to: {result}";
 
-	String engine() default Constants.Script.DEFAULT_ENGINE_NAME;
+	String engine() default "Nashorn";
 
 }

@@ -72,19 +72,19 @@ import org.apiguardian.api.API;
  * automatically available within scripts.
  *
  * <ul>
- * <li>{@link Constants.Script.Bind#SYSTEM_ENVIRONMENT systemEnvironment}: Operating system environment variable accessor</li>
- * <li>{@link Constants.Script.Bind#SYSTEM_PROPERTY systemProperty}: JVM system property accessor</li>
+ * <li>{@code systemEnvironment}: Operating system environment variable accessor</li>
+ * <li>{@code systemProperty}: JVM system property accessor</li>
  * </ul>
  *
- * <p>The following {@link Constants.Script.Bind bindings} are available for accessing information
+ * <p>The following {@link javax.script.Bindings bindings} are available for accessing information
  * from the JUnit Jupiter {@link org.junit.jupiter.api.extension.ExtensionContext
  * ExtensionContext}.
  *
  * <ul>
- * <li>{@link Constants.Script.Bind#JUNIT_TAGS junitTags}: All tags as a {@code Set<String>}</li>
- * <li>{@link Constants.Script.Bind#JUNIT_DISPLAY_NAME junitDisplayName}: Display name as a {@code String}</li>
- * <li>{@link Constants.Script.Bind#JUNIT_UNIQUE_ID junitUniqueId}: Unique ID as a {@code String}</li>
- * <li>{@link Constants.Script.Bind#JUNIT_CONFIGURATION_PARAMETER junitConfigurationParameter}: Configuration parameter accessor</li>
+ * <li>{@code junitTags}: All tags as a {@code Set<String>}</li>
+ * <li>{@code junitDisplayName}: Display name as a {@code String}</li>
+ * <li>{@code junitUniqueId}: Unique ID as a {@code String}</li>
+ * <li>{@code junitConfigurationParameter}: Configuration parameter accessor</li>
  * </ul>
  *
  * <p>Scripts must not declare variables using names that start with {@code junit}.
@@ -124,7 +124,7 @@ public @interface EnabledIf {
 	 * @return the reason the element is enabled or disabled
 	 * @see org.junit.jupiter.api.extension.ConditionEvaluationResult#getReason()
 	 */
-	String reason() default Constants.Script.Reason.DEFAULT_PATTERN;
+	String reason() default "Script `{source}` evaluated to: {result}";
 
 	/**
 	 * Short name of the {@link javax.script.ScriptEngine ScriptEngine} to use.
@@ -140,6 +140,6 @@ public @interface EnabledIf {
 	 * @see javax.script.ScriptEngineManager#getEngineByName(String)
 	 * @see <a href="http://www.oracle.com/technetwork/articles/java/jf14-nashorn-2126515.html">Oracle Nashorn</a>
 	 */
-	String engine() default Constants.Script.DEFAULT_ENGINE_NAME;
+	String engine() default "Nashorn";
 
 }

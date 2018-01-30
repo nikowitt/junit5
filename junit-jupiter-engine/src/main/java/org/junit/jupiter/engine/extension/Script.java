@@ -10,9 +10,9 @@
 
 package org.junit.jupiter.engine.extension;
 
-import static org.junit.jupiter.api.Constants.Script.Reason.ANNOTATION_PLACEHOLDER;
-import static org.junit.jupiter.api.Constants.Script.Reason.RESULT_PLACEHOLDER;
-import static org.junit.jupiter.api.Constants.Script.Reason.SOURCE_PLACEHOLDER;
+import static org.junit.jupiter.engine.Constants.Script.Reason.ANNOTATION_PLACEHOLDER;
+import static org.junit.jupiter.engine.Constants.Script.Reason.RESULT_PLACEHOLDER;
+import static org.junit.jupiter.engine.Constants.Script.Reason.SOURCE_PLACEHOLDER;
 
 import java.lang.annotation.Annotation;
 import java.util.Objects;

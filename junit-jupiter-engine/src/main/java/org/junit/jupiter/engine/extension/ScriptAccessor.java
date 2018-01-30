@@ -16,9 +16,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * Used to access named properties without exposing direct access to the
  * underlying source.
  */
-// apparently needs to be public (even if in a package private class); otherwise
-// we encounter errors such as the following during script evaluation:
-// TypeError: junitConfigurationParameter.get is not a function
 interface ScriptAccessor {
 
 	/**

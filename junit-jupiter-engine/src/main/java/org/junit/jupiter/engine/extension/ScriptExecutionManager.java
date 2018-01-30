@@ -10,10 +10,10 @@
 
 package org.junit.jupiter.engine.extension;
 
-import static org.junit.jupiter.api.Constants.Script.Bind.SYSTEM_ENVIRONMENT;
-import static org.junit.jupiter.api.Constants.Script.Bind.SYSTEM_PROPERTY;
 import static org.junit.jupiter.api.extension.ConditionEvaluationResult.disabled;
 import static org.junit.jupiter.api.extension.ConditionEvaluationResult.enabled;
+import static org.junit.jupiter.engine.Constants.Script.Bind.SYSTEM_ENVIRONMENT;
+import static org.junit.jupiter.engine.Constants.Script.Bind.SYSTEM_PROPERTY;
 
 import java.util.HashMap;
 import java.util.Map;
