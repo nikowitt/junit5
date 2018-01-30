@@ -55,7 +55,7 @@ class ScriptExecutionCondition implements ExecutionCondition {
 			return scriptEvaluationSupport.evaluate(script, createBindings(context));
 		}
 		catch (ScriptException e) {
-			throw new JUnitException("Script evaluation failed for " + script);
+			throw new JUnitException("Script evaluation failed for " + script, e);
 		}
 	}
 
